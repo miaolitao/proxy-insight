@@ -79,6 +79,7 @@ export const RequestListView = {
             <div class="col method ${methodClass}">${data.method}</div>
             <div class="col status ${statusClass}">${data.status || 'Unknown'}</div>
             <div class="col url">${data.url}</div>
+            <div class="col timestamp">${data.timestamp || ''}</div>
             <div class="col time">${data.time}</div>
         `;
 

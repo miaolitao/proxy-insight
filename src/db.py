@@ -96,12 +96,15 @@ class DatabaseManager:
                 result = []
                 for row in rows:
                     d = dict(row)
+                    # Format timestamp from DB string (YYYY-MM-DD HH:MM:SS) to HH:MM:SS
+                    ts = d["timestamp"]
                     item = {
                         "id": d["id"],
                         "method": d["method"],
                         "url": d["url"],
                         "status": d["status"],
                         "time": d["time"],
+                        "timestamp": ts,
                         "request": {
                             "headers": json.loads(d["request_headers"]),
                             "body": d["request_body"],

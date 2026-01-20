@@ -4,6 +4,8 @@ from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
 import threading
 import os
+import time
+from datetime import datetime
 from logging_config import logger, config
 
 
@@ -22,6 +24,7 @@ class TrafficAddon:
             "url": flow.request.pretty_url,
             "status": f"{flow.response.status_code} {flow.response.reason}",
             "time": f"{int((flow.response.timestamp_end - flow.request.timestamp_start) * 1000)}ms",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "request": {
                 "headers": dict(flow.request.headers),
                 "body": flow.request.get_text() if flow.request.text else "",
@@ -71,35 +74,83 @@ class ProxyManager:
         self.thread = None
 
     def start_proxy(self, broadcast_callback=None, host=None, port=None):
-        if self.master:
+        if self.thread and self.thread.is_alive():
             return
 
         host = host or config.get("proxy_host", "0.0.0.0")
         port = int(port or config.get("proxy_port", 8080))
 
-        opts = Options(listen_host=host, listen_port=port)
-        # Enable termlog to see mitmproxy's own internal errors
-        self.master = DumpMaster(opts, with_termlog=True, with_dumper=False)
-        self.master.addons.add(TrafficAddon(broadcast_callback))
+        # Use an event to notify when the master is ready
+        startup_event = threading.Event()
 
         def run():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(self.master.run())
+
+            nonlocal broadcast_callback
+
+            for attempt in range(3):
+                try:
+                    opts = Options(listen_host=host, listen_port=port)
+                    # Create DumpMaster inside the thread so it attaches to the fresh loop
+                    # Pass loop explicitly to avoid "no running event loop" error
+                    self.master = DumpMaster(
+                        opts, with_termlog=True, with_dumper=False, loop=loop
+                    )
+                    self.master.addons.add(TrafficAddon(broadcast_callback))
+
+                    if attempt == 0:
+                        startup_event.set()
+
+                    start_time = datetime.now()
+                    loop.run_until_complete(self.master.run())
+
+                    # Calculate run duration
+                    duration = (datetime.now() - start_time).total_seconds()
+
+                    if duration < 1.0:
+                        logger.warning(
+                            f"Mitmproxy exited quickly ({duration:.2f}s). Port might be busy. Retrying in 1s... (Attempt {attempt+1}/3)"
+                        )
+                        time.sleep(1.0)
+                        continue
+                    else:
+                        break
+
+                except Exception as e:
+                    logger.error(f"Mitmproxy run error: {e}")
+                    time.sleep(1.0)
+
+            try:
+                loop.close()
+                logger.info("Mitmproxy loop closed")
+            except:
+                pass
 
         self.thread = threading.Thread(target=run, daemon=True)
         self.thread.start()
+
+        # Wait for initialization
+        startup_event.wait(timeout=5.0)
         logger.info(f"Mitmproxy started on {host}:{port}")
 
     def stop_proxy(self):
         if self.master:
-            self.master.shutdown()
-            self.master = None
-            self.thread = None
-            logger.info("Mitmproxy stopped")
+            try:
+                self.master.shutdown()
+            except:
+                pass
+
+        if self.thread and self.thread.is_alive():
+            # Wait for the thread to exit (which happens after loop.close)
+            self.thread.join(timeout=2.0)
+
+        self.master = None
+        self.thread = None
+        logger.info("Mitmproxy stopped")
 
     def is_running(self):
-        return self.master is not None
+        return self.thread is not None and self.thread.is_alive()
 
 
 # 全局管理器实例
