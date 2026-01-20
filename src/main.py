@@ -68,8 +68,8 @@ async def get_status():
 
 
 @app.get("/api/requests")
-async def get_requests(limit: int = 50, offset: int = 0):
-    return await db_manager.get_requests(limit, offset)
+async def get_requests(limit: int = 50, offset: int = 0, q: str = None):
+    return await db_manager.get_requests(limit, offset, q)
 
 
 @app.get("/api/stats")

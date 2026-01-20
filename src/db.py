@@ -65,14 +65,23 @@ class DatabaseManager:
             )
             await db.commit()
 
-    async def get_requests(self, limit=50, offset=0):
+    async def get_requests(self, limit=50, offset=0, query=None):
         """Fetch historical requests from the database."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-            async with db.execute(
-                "SELECT * FROM requests ORDER BY id DESC LIMIT ? OFFSET ?",
-                (limit, offset),
-            ) as cursor:
+
+            sql = "SELECT * FROM requests"
+            params = []
+
+            if query:
+                sql += " WHERE url LIKE ? OR method LIKE ? OR request_body LIKE ? OR response_body LIKE ?"
+                q = f"%{query}%"
+                params.extend([q, q, q, q])
+
+            sql += " ORDER BY id DESC LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+
+            async with db.execute(sql, tuple(params)) as cursor:
                 rows = await cursor.fetchall()
                 # Restore original format for frontend compatibility
                 result = []

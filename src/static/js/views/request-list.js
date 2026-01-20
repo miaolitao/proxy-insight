@@ -1,4 +1,5 @@
 import { UI } from '../ui.js';
+import { API } from '../api.js';
 
 /**
  * Request List View logic
@@ -8,11 +9,16 @@ export const RequestListView = {
     detailPanel: null,
     selectedRequest: null,
     currentTab: 'Header',
+    offset: 0,
+    limit: 50,
+    query: '',
+    searchTimeout: null,
 
     init() {
         this.requestList = document.getElementById('request-list');
         this.detailPanel = document.getElementById('detail-panel');
         this.initTabs();
+        this.initLoadMore();
     },
 
     initTabs() {
@@ -27,15 +33,51 @@ export const RequestListView = {
         });
     },
 
-    renderRequest(data) {
+    initLoadMore() {
+        const panel = document.querySelector('.request-panel');
+        const loadMoreBtn = document.createElement('button');
+        loadMoreBtn.id = 'load-more-btn';
+        loadMoreBtn.className = 'load-more-btn';
+        loadMoreBtn.textContent = '加载更多历史记录...';
+        loadMoreBtn.style.display = 'none';
+        loadMoreBtn.addEventListener('click', () => this.loadMore());
+        panel.appendChild(loadMoreBtn);
+        this.loadMoreBtn = loadMoreBtn;
+    },
+
+    async loadMore() {
+        this.loadMoreBtn.textContent = '正在加载...';
+        this.loadMoreBtn.disabled = true;
+        
+        try {
+            const history = await API.getHistory(this.limit, this.offset, this.query);
+            if (history && history.length > 0) {
+                history.forEach(data => this.renderRequest(data, true));
+                this.offset += history.length;
+                if (history.length < this.limit) {
+                    this.loadMoreBtn.style.display = 'none';
+                }
+            } else {
+                this.loadMoreBtn.style.display = 'none';
+            }
+        } catch (err) {
+            console.error('Failed to load more history:', err);
+            UI.showToast('加载失败', 'error');
+        } finally {
+            this.loadMoreBtn.textContent = '加载更多历史记录...';
+            this.loadMoreBtn.disabled = false;
+        }
+    },
+
+    renderRequest(data, append = false) {
         const item = document.createElement('div');
         item.className = 'request-item';
         const methodClass = data.method.toLowerCase();
-        const statusClass = data.status.startsWith('2') ? 'success' : 'error';
+        const statusClass = (data.status && String(data.status).startsWith('2')) ? 'success' : 'error';
 
         item.innerHTML = `
             <div class="col method ${methodClass}">${data.method}</div>
-            <div class="col status ${statusClass}">${data.status}</div>
+            <div class="col status ${statusClass}">${data.status || 'Unknown'}</div>
             <div class="col url">${data.url}</div>
             <div class="col time">${data.time}</div>
         `;
@@ -48,13 +90,11 @@ export const RequestListView = {
             this.updateDetailContent();
         });
 
-        // Apply current filter
-        const query = document.getElementById('search-input').value.toLowerCase();
-        if (query && !item.textContent.toLowerCase().includes(query)) {
-            item.style.display = 'none';
+        if (append) {
+            this.requestList.appendChild(item);
+        } else {
+            this.requestList.prepend(item);
         }
-
-        this.requestList.prepend(item);
     },
 
     updateDetailContent() {
@@ -120,13 +160,23 @@ export const RequestListView = {
         if (this.requestList) this.requestList.innerHTML = '';
         if (this.detailPanel) this.detailPanel.style.display = 'none';
         this.selectedRequest = null;
+        this.offset = 0;
+        if (this.loadMoreBtn) this.loadMoreBtn.style.display = 'none';
     },
 
-    filter(query) {
-        const items = this.requestList.querySelectorAll('.request-item');
-        items.forEach(item => {
-            const text = item.textContent.toLowerCase();
-            item.style.display = text.includes(query) ? 'flex' : 'none';
-        });
+    async filter(query) {
+        this.query = query;
+        this.offset = 0;
+        
+        if (this.searchTimeout) clearTimeout(this.searchTimeout);
+        
+        this.searchTimeout = setTimeout(async () => {
+            this.clear();
+            await this.loadMore();
+            if (query) {
+                UI.showToast(`搜索历史: ${query}`, 'info');
+            }
+        }, 500);
     }
 };
+

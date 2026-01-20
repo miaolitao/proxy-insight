@@ -14,13 +14,22 @@ export const API = {
     return await res.json();
   },
 
-  async getHistory(limit = 50, offset = 0) {
-    const res = await fetch(`/api/requests?limit=${limit}&offset=${offset}`);
+  async getHistory(limit = 50, offset = 0, query = "") {
+    let url = `/api/requests?limit=${limit}&offset=${offset}`;
+    if (query) url += `&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url);
     return await res.json();
   },
 
   async getStats() {
     const res = await fetch("/api/stats");
+    return await res.json();
+  },
+
+  async clear() {
+    const res = await fetch("/api/clear", {
+      method: "POST",
+    });
     return await res.json();
   },
 

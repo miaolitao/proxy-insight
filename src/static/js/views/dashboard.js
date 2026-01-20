@@ -28,7 +28,8 @@ export const DashboardView = {
 
     update(data) {
         this.stats.totalRequests++;
-        const isSuccess = !data.status.startsWith('4') && !data.status.startsWith('5');
+        const statusStr = String(data.status);
+        const isSuccess = !statusStr.startsWith('4') && !statusStr.startsWith('5');
         if (isSuccess) {
             this.stats.successCount++;
         } else {
@@ -82,8 +83,8 @@ export const DashboardView = {
                 </div>
             </div>
             <div class="dashboard-section mt-4">
-                <h3>实时数据说明</h3>
-                <p>当前面板展示自服务启动以来捕获的实时流量统计。数据会随着代理捕获的每一次请求动态更新。</p>
+                <h3>统计数据说明</h3>
+                <p>当前面板展示的是数据库中存储的所有历史流量统计。即使代理服务未运行，你依然可以查看过往的请求数据。数据会随着新捕获的请求实时更新。</p>
             </div>
         `;
     }

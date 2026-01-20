@@ -30,7 +30,13 @@ class App {
 
         // Initialize WebSocket
         API.initWebSocket(
-            (data) => this.handleNewRequest(data),
+            (data) => {
+                if (data.type === 'clear') {
+                    this.handleRemoteClear();
+                } else {
+                    this.handleNewRequest(data);
+                }
+            },
             (err) => {
                 UI.showToast('WebSocket 连接异常', 'error');
                 console.error(err);
@@ -60,17 +66,9 @@ class App {
             const stats = await API.getStats();
             DashboardView.setStats(stats);
 
-            // Load requests
-            const history = await API.getHistory();
-            if (Array.isArray(history)) {
-                // Use a separate copy to satisfy lint and keep order logic clear
-                const reversedHistory = [...history].reverse();
-                reversedHistory.forEach(data => {
-                    this.allRequests.unshift(data);
-                    RequestListView.renderRequest(data);
-                });
-                UI.showToast(`已加载 ${history.length} 条历史记录`, 'info');
-            }
+            // Load first page of requests
+            await RequestListView.loadMore();
+            UI.showToast('历史记录已加载', 'info');
         } catch (err) {
             console.error('Failed to load history:', err);
             UI.showToast('历史记录加载失败', 'error');
@@ -104,17 +102,20 @@ class App {
         });
 
         // Clear All
-        clearBtn.addEventListener('click', () => {
-            this.allRequests = [];
-            DashboardView.clear();
-            RequestListView.clear();
-            searchInput.value = '';
-            UI.showToast('列表及统计已清空');
+        clearBtn.addEventListener('click', async () => {
+            try {
+                await API.clear();
+                this.handleRemoteClear();
+                UI.showToast('列表及统计已清空');
+            } catch (err) {
+                console.error('Clear error:', err);
+                UI.showToast('清空失败', 'error');
+            }
         });
 
-        // Search Filter
+        // Search Filter (Delegated to RequestListView for server-side search)
         searchInput.addEventListener('input', (e) => {
-            RequestListView.filter(e.target.value.toLowerCase());
+            RequestListView.filter(e.target.value.trim());
         });
 
         // Navigation
@@ -150,6 +151,14 @@ class App {
         
         DashboardView.update(data);
         RequestListView.renderRequest(data);
+    }
+
+    handleRemoteClear() {
+        this.allRequests = [];
+        DashboardView.clear();
+        RequestListView.clear();
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.value = '';
     }
 
     switchView(viewName) {
