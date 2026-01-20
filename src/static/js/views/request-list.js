@@ -143,6 +143,35 @@ export const RequestListView = {
                     </div>
                 `;
                 break;
+            case 'Curl': {
+                const curlCmd = UI.generateCurlCommand(this.selectedRequest);
+                html = `
+                    <div class="detail-section">
+                        <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3>cURL Command</h3>
+                            <button class="copy-btn" onclick="navigator.clipboard.writeText(document.querySelector('#curl-code').innerText).then(() => { const btn = document.querySelector('.copy-btn'); btn.textContent = '已复制'; setTimeout(() => btn.textContent = '复制', 2000); })">复制</button>
+                        </div>
+                        <pre><code id="curl-code">${curlCmd}</code></pre>
+                    </div>
+                `;
+                break;
+            }
+            case 'Response':
+                html = `
+                    <div class="detail-section">
+                        <h3>状态 (Status)</h3>
+                        <pre><code>${this.selectedRequest.status}</code></pre>
+                    </div>
+                    <div class="detail-section">
+                        <h3>响应头 (Response Headers)</h3>
+                        <pre><code>${UI.formatHeaders(this.selectedRequest.response.headers)}</code></pre>
+                    </div>
+                    <div class="detail-section">
+                        <h3>响应主体 (Response Body)</h3>
+                        <pre><code>${UI.formatBody(this.selectedRequest.response.body)}</code></pre>
+                    </div>
+                `;
+                break;
             case '耗时':
                 html = `
                     <div class="detail-section">

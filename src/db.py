@@ -41,29 +41,38 @@ class DatabaseManager:
 
     async def save_request(self, data):
         """Save a captured request/response pair to the database."""
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute(
-                """
-                INSERT INTO requests (
-                    method, url, status, time,
-                    request_headers, request_body, request_cookies,
-                    response_headers, response_body, response_cookies
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    data["method"],
-                    data["url"],
-                    data["status"],
-                    data["time"],
-                    json.dumps(data["request"]["headers"]),
-                    data["request"]["body"],
-                    json.dumps(data["request"]["cookies"]),
-                    json.dumps(data["response"]["headers"]),
-                    data["response"]["body"],
-                    json.dumps(data["response"]["cookies"]),
-                ),
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute(
+                    """
+                    INSERT INTO requests (
+                        method, url, status, time,
+                        request_headers, request_body, request_cookies,
+                        response_headers, response_body, response_cookies
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        data["method"],
+                        data["url"],
+                        data["status"],
+                        data["time"],
+                        json.dumps(data["request"]["headers"]),
+                        data["request"]["body"],
+                        json.dumps(data["request"]["cookies"]),
+                        json.dumps(data["response"]["headers"]),
+                        data["response"]["body"],
+                        json.dumps(data["response"]["cookies"]),
+                    ),
+                )
+                await db.commit()
+        except Exception as e:
+            logger.error(
+                f"DB SAVE ERROR: {e} | Data keys: {list(data.keys())} | URL: {data.get('url')}"
             )
-            await db.commit()
+            # Optionally log more details if needed
+            import traceback
+
+            logger.error(traceback.format_exc())
 
     async def get_requests(self, limit=50, offset=0, query=None):
         """Fetch historical requests from the database."""

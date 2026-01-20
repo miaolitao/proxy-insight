@@ -25,12 +25,12 @@ class TrafficAddon:
             "request": {
                 "headers": dict(flow.request.headers),
                 "body": flow.request.get_text() if flow.request.text else "",
-                "cookies": dict(flow.request.cookies),
+                "cookies": {k: str(v) for k, v in flow.request.cookies.items()},
             },
             "response": {
                 "headers": dict(flow.response.headers),
                 "body": flow.response.get_text() if flow.response.text else "",
-                "cookies": dict(flow.response.cookies),
+                "cookies": {k: str(v) for k, v in flow.response.cookies.items()},
             },
         }
 
