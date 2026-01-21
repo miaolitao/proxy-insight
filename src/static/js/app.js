@@ -1,5 +1,5 @@
-import { API } from './api.js';
-import { UI } from './ui.js';
+import { API } from './api.js?v=20260121';
+import { UI } from './ui.js?v=20260121';
 import { DashboardView } from './views/dashboard.js';
 import { RequestListView } from './views/request-list.js';
 
@@ -33,6 +33,8 @@ class App {
             (data) => {
                 if (data.type === 'clear') {
                     this.handleRemoteClear();
+                } else if (data.type === 'notification') {
+                    UI.addNotification(data);
                 } else {
                     this.handleNewRequest(data);
                 }
@@ -78,6 +80,9 @@ class App {
     bindEvents() {
         const proxyToggle = document.getElementById('proxy-toggle');
         const clearBtn = document.getElementById('clear-btn');
+        const bellBtn = document.getElementById('bell-btn');
+        const markReadBtn = document.getElementById('mark-read-btn');
+        const notifDropdown = document.getElementById('notif-dropdown');
         const searchInput = document.getElementById('search-input');
         const navItems = document.querySelectorAll('.nav-item');
         const certLink = document.getElementById('cert-link');
@@ -89,10 +94,9 @@ class App {
                 const data = await API.toggleProxy(enable);
                 if (data.success) {
                     UI.updateStatusUI(enable);
-                    UI.showToast(enable ? '代理服务已启动' : '代理服务已停止', 'success');
                 } else {
                     proxyToggle.checked = !enable;
-                    UI.showToast('操作失败，请检查权限', 'error');
+                    UI.showToast(data.error || '操作失败，请检查权限', 'error');
                 }
             } catch (err) {
                 console.error('Toggle error:', err);
@@ -104,7 +108,7 @@ class App {
         // Clear All
         clearBtn.addEventListener('click', async () => {
             try {
-                await API.clear();
+                await API.clearAll();
                 this.handleRemoteClear();
                 UI.showToast('列表及统计已清空');
             } catch (err) {
@@ -113,14 +117,35 @@ class App {
             }
         });
 
-        // Search Filter (Delegated to RequestListView for server-side search)
+        // Notification Bell
+        bellBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            notifDropdown.classList.toggle('show');
+            const badge = document.getElementById('notif-badge');
+            if (notifDropdown.classList.contains('show')) {
+                badge.style.display = 'none';
+                badge.textContent = '0';
+            }
+        });
+
+        markReadBtn.addEventListener('click', () => {
+            const list = document.getElementById('notif-list');
+            list.innerHTML = '<div class="notif-empty">暂无新消息</div>';
+            UI.showToast('已标记全部为已读');
+        });
+
+        document.addEventListener('click', () => {
+            notifDropdown.classList.remove('show');
+        });
+
+        // Search Filter
         searchInput.addEventListener('input', (e) => {
             RequestListView.filter(e.target.value.trim());
         });
 
         // Navigation
         navItems.forEach(item => {
-            item.addEventListener('click', (e) => {
+            item.addEventListener('click', async (e) => {
                 const text = item.innerText;
                 if (text.includes('仪表盘')) {
                     e.preventDefault();
@@ -128,9 +153,12 @@ class App {
                 } else if (text.includes('请求列表')) {
                     e.preventDefault();
                     this.switchView('request-list');
+                } else if (text.includes('设置')) {
+                    e.preventDefault();
+                    await this.showSettings();
                 }
                 
-                if (!item.id.includes('cert-link') && item.getAttribute('href') === '#') {
+                if (item.getAttribute('href') === '#') {
                     navItems.forEach(ni => ni.classList.remove('active'));
                     item.classList.add('active');
                 }
@@ -142,6 +170,43 @@ class App {
             certLink.addEventListener('click', () => {
                 UI.showToast('开始下载 CA 证书...', 'info');
             });
+        }
+    }
+
+    async showSettings() {
+        try {
+            const config = await API.getConfig();
+            UI.renderSettings(config);
+            this.switchView('settings');
+            
+            // Re-bind save button since it's re-rendered
+            document.getElementById('save-config-btn').onclick = async () => {
+                const updated = {
+                    app_host: document.getElementById('cfg-app-host').value,
+                    app_port: Number.parseInt(document.getElementById('cfg-app-port').value),
+                    proxy_host: document.getElementById('cfg-proxy-host').value,
+                    proxy_port: Number.parseInt(document.getElementById('cfg-proxy-port').value),
+                    db_type: document.querySelector('.db-option.active').dataset.type,
+                    mysql: {
+                        host: document.getElementById('cfg-mysql-host').value,
+                        port: Number.parseInt(document.getElementById('cfg-mysql-port').value),
+                        user: document.getElementById('cfg-mysql-user').value,
+                        password: document.getElementById('cfg-mysql-pass').value,
+                        database: document.getElementById('cfg-mysql-db').value
+                    }
+                };
+                
+                try {
+                    const res = await API.updateConfig(updated);
+                    if (res.success) {
+                        UI.showToast('配置已保存，部分设置需重启生效', 'success');
+                    }
+                } catch (err) {
+                    UI.showToast('保存失败', 'error');
+                }
+            };
+        } catch (err) {
+            UI.showToast('加载配置失败', 'error');
         }
     }
 
@@ -163,15 +228,18 @@ class App {
 
     switchView(viewName) {
         this.currentView = viewName;
-        const dashboardView = document.getElementById('dashboard-view');
-        const listView = document.getElementById('request-list-view');
+        const views = {
+            'dashboard': document.getElementById('dashboard-view'),
+            'request-list': document.getElementById('request-list-view'),
+            'settings': document.getElementById('settings-view')
+        };
         
-        if (viewName === 'dashboard') {
-            dashboardView.style.display = 'block';
-            listView.style.display = 'none';
-        } else {
-            dashboardView.style.display = 'none';
-            listView.style.display = 'flex';
+        Object.keys(views).forEach(v => {
+            if (views[v]) views[v].style.display = 'none';
+        });
+        
+        if (views[viewName]) {
+            views[viewName].style.display = viewName === 'request-list' ? 'flex' : 'block';
         }
     }
 }

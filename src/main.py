@@ -12,6 +12,19 @@ from utils import set_mac_proxy
 from db import db_manager
 from logging_config import logger, config
 from proxy_mgr import proxy_manager
+from config_api import router as config_router
+
+
+async def send_notification(type: str, title: str, message: str):
+    """Broadcast a notification to all connected clients."""
+    data = {
+        "type": "notification",
+        "level": type,  # info, success, warning, error
+        "title": title,
+        "message": message,
+        "timestamp": os.popen("date '+%H:%M:%S'").read().strip(),
+    }
+    await broadcast_traffic(data)
 
 
 @asynccontextmanager
@@ -20,8 +33,12 @@ async def lifespan(app: FastAPI):
     logger.info("Backend starting...")
     try:
         await db_manager.init_db()
+        await send_notification(
+            "success", "系统就绪", f"数据库已初始化 ({db_manager.db_type})"
+        )
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
+        await send_notification("error", "初始化失败", str(e))
 
     yield
 
@@ -41,6 +58,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(config_router)
 
 # Active connections
 active_connections = []
@@ -85,9 +105,11 @@ async def toggle_proxy(enable: bool):
             proxy_host = config.get("proxy_host", "127.0.0.1")
             proxy_port = config.get("proxy_port", 8080)
             set_mac_proxy(True, host=proxy_host, port=proxy_port)
+            await send_notification("success", "代理已启动", f"监听端口: {proxy_port}")
         else:
             proxy_manager.stop_proxy()
             set_mac_proxy(False)
+            await send_notification("info", "代理已关闭", "已停止流量抓取")
         return {"success": True, "proxy_running": proxy_manager.is_running()}
     except Exception as e:
         logger.error(f"Failed to toggle proxy: {e}")

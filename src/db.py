@@ -6,7 +6,12 @@ import logging
 from datetime import datetime
 from logging_config import config
 
+import warnings
 from contextlib import asynccontextmanager
+
+# 忽略 MySQL 数据库或表已存在的警告 (IF NOT EXISTS 触发)
+warnings.filterwarnings("ignore", message=".*database exists.*")
+warnings.filterwarnings("ignore", message=".*already exists.*")
 
 logger = logging.getLogger("proxy_insight")
 

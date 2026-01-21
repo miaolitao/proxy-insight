@@ -26,9 +26,25 @@ export const API = {
     return await res.json();
   },
 
-  async clear() {
+  async clearAll() {
     const res = await fetch("/api/clear", {
       method: "POST",
+    });
+    return await res.json();
+  },
+
+  async getConfig() {
+    const res = await fetch("/api/config");
+    return await res.json();
+  },
+
+  async updateConfig(config) {
+    const res = await fetch("/api/config/update", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(config),
     });
     return await res.json();
   },

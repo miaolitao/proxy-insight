@@ -5,9 +5,14 @@ from logging.handlers import RotatingFileHandler
 import tomllib
 
 
+# 全局路径定义
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+SRC_DIR = BASE_DIR
+
+
 def load_config():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(base_dir, "config.toml")
+    config_path = os.path.join(SRC_DIR, "config.toml")
     config = {
         "app_host": "0.0.0.0",
         "app_port": 8000,
@@ -53,9 +58,7 @@ def load_config():
 
 def setup_logging():
     # 确保 logs 目录存在于项目根目录 (src 的上一级)
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(base_dir)
-    log_dir = os.path.join(project_root, "logs")
+    log_dir = os.path.join(PROJECT_ROOT, "logs")
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
