@@ -22,9 +22,17 @@ DB_PATH = os.path.join(PROJECT_ROOT, "proxy_traffic.db")
 
 class DatabaseManager:
     def __init__(self):
+        self.refresh_config()
+
+    def refresh_config(self):
+        """Refresh configuration from the global config object."""
+        # Note: we import here to ensure we get the latest state of the mutable config dict
+        from logging_config import config
+
         self.db_type = config.get("db_type", "sqlite").lower()
         self.db_path = DB_PATH
         self.mysql_config = config.get("mysql", {})
+        logger.info(f"DatabaseManager configuration refreshed: type={self.db_type}")
 
     def get_placeholder(self):
         return "%s" if self.db_type == "mysql" else "?"

@@ -199,7 +199,7 @@ class App {
                 try {
                     const res = await API.updateConfig(updated);
                     if (res.success) {
-                        UI.showToast('配置已保存，部分设置需重启生效', 'success');
+                        UI.showToast('配置已应用！数据库已热切换，端口变更需重启', 'success');
                     }
                 } catch (err) {
                     UI.showToast('保存失败', 'error');
