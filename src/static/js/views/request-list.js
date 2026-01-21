@@ -39,10 +39,13 @@ export const RequestListView = {
         loadMoreBtn.id = 'load-more-btn';
         loadMoreBtn.className = 'load-more-btn';
         loadMoreBtn.textContent = '加载更多历史记录...';
-        loadMoreBtn.style.display = 'none';
+        loadMoreBtn.style.display = 'block'; // Show by default
         loadMoreBtn.addEventListener('click', () => this.loadMore());
         panel.appendChild(loadMoreBtn);
         this.loadMoreBtn = loadMoreBtn;
+        
+        // Load initial history on start
+        this.loadMore();
     },
 
     async loadMore() {

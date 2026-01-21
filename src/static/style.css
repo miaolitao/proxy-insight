@@ -357,6 +357,12 @@ input:checked + .slider:before {
 .url {
   flex: 1;
 }
+.timestamp {
+  width: 160px;
+  flex-shrink: 0;
+  color: var(--text-dim);
+  text-align: left;
+}
 .time {
   width: 80px;
   text-align: right;
