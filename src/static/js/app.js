@@ -147,7 +147,7 @@ class App {
         navItems.forEach(item => {
             item.addEventListener('click', async (e) => {
                 const text = item.innerText;
-                if (text.includes('仪表盘')) {
+                if (text.includes('首页')) {
                     e.preventDefault();
                     this.switchView('dashboard');
                 } else if (text.includes('请求列表')) {
