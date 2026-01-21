@@ -2,29 +2,51 @@ import logging
 import os
 import json
 from logging.handlers import RotatingFileHandler
+import tomllib
 
 
 def load_config():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(base_dir, "config.json")
+    config_path = os.path.join(base_dir, "config.toml")
     config = {
         "app_host": "0.0.0.0",
         "app_port": 8000,
         "proxy_host": "0.0.0.0",
         "proxy_port": 8080,
+        "db_type": "sqlite",
+        "mysql": {
+            "host": "127.0.0.1",
+            "port": 3306,
+            "user": "root",
+            "password": "root",
+            "database": "proxy_insight",
+        },
     }
     if os.path.exists(config_path):
         try:
-            with open(config_path, "r") as f:
-                config.update(json.load(f))
+            with open(config_path, "rb") as f:
+                config.update(tomllib.load(f))
         except Exception as e:
-            print(f"Failed to load config.json: {e}")
+            print(f"Failed to load config.toml: {e}")
 
     # Allow environment variables to override
     config["app_host"] = os.getenv("APP_HOST", config["app_host"])
     config["app_port"] = int(os.getenv("APP_PORT", config["app_port"]))
     config["proxy_host"] = os.getenv("PROXY_HOST", config["proxy_host"])
     config["proxy_port"] = int(os.getenv("PROXY_PORT", config["proxy_port"]))
+    config["db_type"] = os.getenv("DB_TYPE", config["db_type"])
+
+    # MySQL env overrides
+    if "mysql" in config:
+        config["mysql"]["host"] = os.getenv("MYSQL_HOST", config["mysql"]["host"])
+        config["mysql"]["port"] = int(os.getenv("MYSQL_PORT", config["mysql"]["port"]))
+        config["mysql"]["user"] = os.getenv("MYSQL_USER", config["mysql"]["user"])
+        config["mysql"]["password"] = os.getenv(
+            "MYSQL_PASSWORD", config["mysql"]["password"]
+        )
+        config["mysql"]["database"] = os.getenv(
+            "MYSQL_DATABASE", config["mysql"]["database"]
+        )
 
     return config
 
